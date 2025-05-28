@@ -1,0 +1,137 @@
+name: Terraform CI/CD pour API Gateway
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_DEFAULT_REGION: "us-west-2"  # Région que tu utilises
+  TF_VAR_project_name: "api-gateway-project"
+  TF_VAR_environment: "dev"  # Environnement par défaut
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Terraform Validate
+        run: terraform validate
+      
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        continue-on-error: true
+      
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v3
+        with:
+          name: tfplan
+          path: tfplan
+      
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: terraform apply -auto-approve tfplan
+
+  deploy-test:
+    needs: terraform
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: test  # Environnement GitHub pour les approbations
+    
+    env:
+      TF_VAR_environment: "test"
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Test API Gateway (Dev)
+        run: |
+          DEV_URL=$(terraform output -raw api_gateway_urls | jq -r '.dev')
+          echo "Testing Dev API at $DEV_URL"
+          curl -s -o /dev/null -w "%{http_code}" $DEV_URL/users | grep 200
+          curl -s -o /dev/null -w "%{http_code}" -X POST $DEV_URL/images -d '{"test":"data"}' | grep 200
+          curl -s -o /dev/null -w "%{http_code}" $DEV_URL/data | grep 200
+
+  deploy-prod:
+    needs: deploy-test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production  # Environnement GitHub pour les approbations
+    
+    env:
+      TF_VAR_environment: "prod"
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Test API Gateway (Test)
+        run: |
+          TEST_URL=$(terraform output -raw api_gateway_urls | jq -r '.test')
+          echo "Testing Test API at $TEST_URL"
+          curl -s -o /dev/null -w "%{http_code}" $TEST_URL/users | grep 200
+          curl -s -o /dev/null -w "%{http_code}" -X POST $TEST_URL/images -d '{"test":"data"}' | grep 200
+          curl -s -o /dev/null -w "%{http_code}" $TEST_URL/data | grep 200
+      
+      - name: Notify Slack on Success
+        uses: rtCamp/action-slack-notify@v2
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_COLOR: good
+          SLACK_TITLE: API Gateway Deployment Successful
+          SLACK_MESSAGE: "API Gateway has been successfully deployed to production!"
