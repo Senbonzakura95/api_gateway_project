@@ -1,5 +1,5 @@
 provider "aws" {
-  region = var.aws_region
+  region = "us-west-2"  # Utilise la région de ton lab
 }
 
 terraform {
@@ -8,11 +8,5 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 4.0"
     }
-  }
-  
-  backend "s3" {
-    bucket = "your-terraform-state-bucket"
-    key    = "api-gateway/terraform.tfstate"
-    region = "us-east-1"
   }
 }

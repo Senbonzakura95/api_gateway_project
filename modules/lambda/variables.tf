@@ -1,45 +1,50 @@
 variable "function_name" {
   description = "Name of the Lambda function"
+  type        = string
 }
 
 variable "source_dir" {
-  description = "Directory containing Lambda function code"
+  description = "Directory containing the Lambda function code"
+  type        = string
 }
 
 variable "handler" {
-  description = "Lambda function handler"
-  default     = "index.handler"
+  description = "Handler for the Lambda function"
+  type        = string
+  default     = "index.lambda_handler"
 }
 
 variable "runtime" {
-  description = "Lambda runtime"
+  description = "Runtime for the Lambda function"
+  type        = string
   default     = "python3.9"
 }
 
-variable "timeout" {
-  description = "Lambda timeout in seconds"
-  default     = 30
-}
-
-variable "memory_size" {
-  description = "Lambda memory size in MB"
-  default     = 128
-}
-
 variable "environment_variables" {
-  description = "Environment variables for Lambda function"
+  description = "Environment variables for the Lambda function"
   type        = map(string)
   default     = {}
 }
 
 variable "environment" {
   description = "Deployment environment"
+  type        = string
 }
 
 variable "project_name" {
   description = "Name of the project"
+  type        = string
 }
 
-variable "api_gateway_execution_arn" {
-  description = "API Gateway execution ARN"
+# Ajouter ces deux variables
+variable "memory_size" {
+  description = "Memory size for the Lambda function in MB"
+  type        = number
+  default     = 128
+}
+
+variable "timeout" {
+  description = "Timeout for the Lambda function in seconds"
+  type        = number
+  default     = 3
 }

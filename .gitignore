@@ -1,0 +1,44 @@
+# Fichiers d'état Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+.terraformrc
+terraform.rc
+
+# Fichiers de crash log
+crash.log
+crash.*.log
+
+# Fichiers de variables contenant potentiellement des secrets
+*.tfvars
+*.tfvars.json
+!example.tfvars
+
+# Fichiers de plan d'exécution
+*tfplan*
+
+# Fichiers de configuration CLI
+.terraformrc
+terraform.rc
+
+# Fichiers générés par Lambda
+lambda/*.zip
+modules/lambda/files/
+
+# Logs
+*.log
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers d'environnement
+.env
+.env.*
+
+# Dossiers d'IDE
+.idea/
+.vscode/
+*.swp
+*.swo
